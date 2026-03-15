@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Sorter</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        img { max-height: 70vh; max-width: 90vw; border: 2px solid #555; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .buttons { margin-top: 20px; }
+        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 5px; margin: 0 10px; }
+        .btn-keep { background: #28a745; color: white; }
+        .btn-skip { background: #dc3545; color: white; }
+        .info { margin-bottom: 10px; color: #aaa; }
+        #status { font-weight: bold; color: #ffd700; }
+    </style>
+</head>
+<body>
+    <div class="info">Remaining: <span id="count">...</span> | Keep Folder: <span id="status">Loading...</span></div>
+    <img id="image" src="" alt="Loading...">
+    <div class="buttons">
+        <button class="btn-skip" onclick="vote('skip')">Skip (Reject)</button>
+        <button class="btn-keep" onclick="vote('keep')">Keep (Select)</button>
+    </div>
+
+    <script>
+        async function loadimage() {
+            const res = await fetch('/image');
+            const data = await res.json();
+            if (data.status === 'done') {
+                document.getElementById('image').style.display = 'none';
+                document.getElementById('count').innerText = "0";
+                document.getElementById('status').innerText = data.message;
+                document.querySelector('.buttons').style.display = 'none';
+                return;
+            }
+            document.getElementById('count').innerText = data.count_remaining;
+            // Add timestamp to prevent caching
+            document.getElementById('image').src = '/workspaces/princess/' + data.filename + '?t=' + new Date().getTime(); 
+            // Note: In Codespace, you might need to adjust the path above depending on how static files are served. 
+            // A simpler trick for this specific script: serve the image via a new route or use absolute URL.
+            // For simplicity in this snippet, we will assume the image path is relative to the workspace root if served correctly.
+            // BETTER APPROACH FOR CODESPACE: Fetch the image blob via JS or update Python to serve images.
+            // Let's update the Python to serve images dynamically to avoid path issues.
+            document.getElementById('image').src = '/serve_image?filename=' + encodeURIComponent(data.filename);
+            window.currentFile = data.filename;
+        }
+
+        async function vote(decision) {
+            if (!window.currentFile) return;
+            await fetch('/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: window.currentFile, decision: decision})
+            });
+            loadimage();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') vote('skip');
+            if (e.key === 'ArrowRight') vote('keep');
+        });
+
+        loadimage();
+    </script>
+</body>
+</html>
